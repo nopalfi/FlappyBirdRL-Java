@@ -2,6 +2,9 @@ package xyz.nopalfi;
 
 import com.almasb.fxgl.app.GameApplication;
 import com.almasb.fxgl.app.GameSettings;
+import com.almasb.fxgl.app.scene.FXGLDefaultMenu;
+import com.almasb.fxgl.app.scene.MenuType;
+import com.almasb.fxgl.audio.Sound;
 import com.almasb.fxgl.dsl.FXGL;
 import com.almasb.fxgl.dsl.views.SelfScrollingBackgroundView;
 import com.almasb.fxgl.entity.Entity;
@@ -17,32 +20,40 @@ import javafx.geometry.Orientation;
 import javafx.scene.input.KeyCode;
 import javafx.util.Duration;
 
+import static com.almasb.fxgl.dsl.FXGL.*;
+
 import java.util.List;
 
 public class BaseGame extends GameApplication {
 
-    private boolean isPlaying;
-    private Texture messageTexture;
+    private BirdComponent birdComponent;
 
+    private boolean isPlaying = false;
+    private boolean isJumping = false;
+    private Texture messageTexture;
+    private Sound wing;
     private static Entity bird;
+    private static Entity pipeUp;
+    private static Entity pipeDown;
     public static void main( String[] args ) {
         launch(args);
     }
 
     @Override
     protected void initGame() {
-        SelfScrollingBackgroundView scrollView = new SelfScrollingBackgroundView(FXGL.getAssetLoader().loadImage("base.png"), 388, 112, Orientation.HORIZONTAL, 50);
-        FXGL.entityBuilder().view(scrollView).buildAndAttach();
-        messageTexture = FXGL.getAssetLoader().loadTexture("message.png");
-        FXGL.getGameWorld().addEntityFactory(new BirdFactory());
-        FXGL.spawn("bird");
-        FXGL.getGameScene().setBackgroundRepeat("background-day.png");
+        FXGLDefaultMenu defaultMenu = new FXGLDefaultMenu(MenuType.GAME_MENU);
+        SelfScrollingBackgroundView scrollView = new SelfScrollingBackgroundView(getAssetLoader().loadImage("base.png"), 388, 112, Orientation.HORIZONTAL, 100);
+        entityBuilder().view(scrollView).buildAndAttach();
+        messageTexture = getAssetLoader().loadTexture("message.png");
+        wing = getAssetLoader().loadSound("wing.wav");
+        getGameWorld().addEntityFactory(new BirdFactory());
+        getGameScene().setBackgroundRepeat("background-day.png");
         messageTexture.setTranslateX(85);
         messageTexture.setTranslateY(100);
         messageTexture.setFitWidth(220);
         messageTexture.setFitHeight(395);
         scrollView.setTranslateY(510);
-        FXGL.getGameScene().addUINodes(messageTexture);
+        getGameScene().addUINodes(messageTexture);
     }
 
     @Override
@@ -54,30 +65,65 @@ public class BaseGame extends GameApplication {
     }
 
     @Override
-    protected void initInput() {
-        FXGL.onKey(KeyCode.SPACE, () -> {
+    protected void initPhysics() {
+        getPhysicsWorld().setGravity(0, 1600);
+    }
 
+    @Override
+    protected void initInput() {
+        onKeyDown(KeyCode.SPACE, () -> {
+            if (!isPlaying) {
+                spawn("bird");
+                getGameScene().removeUINode(messageTexture);
+                isPlaying = true;
+            }
+            getAudioPlayer().playSound(wing);
+            bird.getComponent(PhysicsComponent.class).setVelocityY(-500);
+        });
+        onKeyDown(KeyCode.ESCAPE, () -> {
+            getGameController().startNewGame();
         });
     }
 
     public static class BirdFactory implements EntityFactory {
-
         @Spawns("bird")
         public Entity newBird(SpawnData data) {
             PhysicsComponent physicsComponent = new PhysicsComponent();
             physicsComponent.setBodyType(BodyType.DYNAMIC);
             var channel = new AnimationChannel(List.of(
-                    FXGL.image("redbird-downflap.png"),
-                    FXGL.image("redbird-midflap.png"),
-                    FXGL.image("redbird-upflap.png"),
-                    FXGL.image("redbird-midflap.png")
+                    image("redbird-downflap.png"),
+                    image("redbird-midflap.png"),
+                    image("redbird-upflap.png"),
+                    image("redbird-midflap.png")
             ), Duration.seconds(0.75));
-            bird = FXGL.entityBuilder()
+            bird = entityBuilder()
                     .view(new AnimatedTexture(channel).loop())
                     .with(physicsComponent)
                     .at(180, 360)
                     .buildAndAttach();
             return bird;
         };
+    }
+
+    public static class PipeFactory implements EntityFactory {
+        @Spawns("pipeUp")
+        public Entity newPipeUp(SpawnData data) {
+            var pipeUpTexture = getAssetLoader().loadTexture("pipe-green.png");
+            pipeUp = entityBuilder()
+                    .view(pipeUpTexture)
+                    .build();
+            return pipeUp;
+        }
+
+        @Spawns("pipeDown")
+        public Entity newPipeDown(SpawnData data) {
+            var pipeUpTexture = getAssetLoader().loadTexture("pipe-green.png");
+            pipeUpTexture.setRotate(180);
+            pipeDown = entityBuilder()
+                    .view(pipeUpTexture)
+                    .build();
+            return pipeDown;
+        }
+
     }
 }
