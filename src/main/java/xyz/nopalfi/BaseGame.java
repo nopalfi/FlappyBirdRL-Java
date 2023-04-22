@@ -11,6 +11,8 @@ import com.almasb.fxgl.entity.Entity;
 import com.almasb.fxgl.entity.EntityFactory;
 import com.almasb.fxgl.entity.SpawnData;
 import com.almasb.fxgl.entity.Spawns;
+import com.almasb.fxgl.entity.components.CollidableComponent;
+import com.almasb.fxgl.physics.CollisionHandler;
 import com.almasb.fxgl.physics.PhysicsComponent;
 import com.almasb.fxgl.physics.box2d.dynamics.BodyType;
 import com.almasb.fxgl.texture.AnimatedTexture;
@@ -18,6 +20,8 @@ import com.almasb.fxgl.texture.AnimationChannel;
 import com.almasb.fxgl.texture.Texture;
 import javafx.geometry.Orientation;
 import javafx.scene.input.KeyCode;
+import javafx.scene.paint.Color;
+import javafx.scene.shape.Rectangle;
 import javafx.util.Duration;
 
 import static com.almasb.fxgl.dsl.FXGL.*;
@@ -35,17 +39,21 @@ public class BaseGame extends GameApplication {
     private static Entity bird;
     private static Entity pipeUp;
     private static Entity pipeDown;
+    private Sound die;
     public static void main( String[] args ) {
         launch(args);
     }
 
     @Override
     protected void initGame() {
-        FXGLDefaultMenu defaultMenu = new FXGLDefaultMenu(MenuType.GAME_MENU);
+//        Texture baseTexture = getAssetLoader().loadTexture("base.png");
+//        entityBuilder().type(EntityType.WALL).view(baseTexture).at(0, 510).collidable().buildAndAttach();
+        entityBuilder().type(EntityType.WALL).viewWithBBox(new Rectangle(400, 200, Color.BLACK)).at(0,500).with(new CollidableComponent(true)).buildAndAttach();
         SelfScrollingBackgroundView scrollView = new SelfScrollingBackgroundView(getAssetLoader().loadImage("base.png"), 388, 112, Orientation.HORIZONTAL, 100);
-        entityBuilder().view(scrollView).buildAndAttach();
+//        entityBuilder().type(EntityType.WALL).viewWithBBox(scrollView).collidable().buildAndAttach();
         messageTexture = getAssetLoader().loadTexture("message.png");
         wing = getAssetLoader().loadSound("wing.wav");
+        die = getAssetLoader().loadSound("die.wav");
         getGameWorld().addEntityFactory(new BirdFactory());
         getGameScene().setBackgroundRepeat("background-day.png");
         messageTexture.setTranslateX(85);
@@ -58,6 +66,7 @@ public class BaseGame extends GameApplication {
 
     @Override
     protected void initSettings(GameSettings gameSettings) {
+        gameSettings.setSceneFactory(new MyCustomFactoryScene());
         gameSettings.setWidth(388);
         gameSettings.setHeight(612);
         gameSettings.setTitle("FlappyBirdRL-Java");
@@ -66,6 +75,9 @@ public class BaseGame extends GameApplication {
 
     @Override
     protected void initPhysics() {
+        onCollisionBegin(EntityType.PLAYER, EntityType.WALL, (player, wall) -> {
+            System.out.println("Hit wall");
+        });
         getPhysicsWorld().setGravity(0, 1600);
     }
 
@@ -80,9 +92,7 @@ public class BaseGame extends GameApplication {
             getAudioPlayer().playSound(wing);
             bird.getComponent(PhysicsComponent.class).setVelocityY(-500);
         });
-        onKeyDown(KeyCode.ESCAPE, () -> {
-            getGameController().startNewGame();
-        });
+
     }
 
     public static class BirdFactory implements EntityFactory {
@@ -97,10 +107,10 @@ public class BaseGame extends GameApplication {
                     image("redbird-midflap.png")
             ), Duration.seconds(0.75));
             bird = entityBuilder()
-                    .view(new AnimatedTexture(channel).loop())
+                    .viewWithBBox(new AnimatedTexture(channel).loop())
                     .with(physicsComponent)
                     .at(180, 360)
-                    .buildAndAttach();
+                    .build();
             return bird;
         };
     }
