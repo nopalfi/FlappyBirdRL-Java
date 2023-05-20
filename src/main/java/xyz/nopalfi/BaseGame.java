@@ -8,7 +8,6 @@ import com.almasb.fxgl.entity.Entity;
 import com.almasb.fxgl.entity.EntityFactory;
 import com.almasb.fxgl.entity.SpawnData;
 import com.almasb.fxgl.entity.Spawns;
-import com.almasb.fxgl.entity.components.CollidableComponent;
 import com.almasb.fxgl.physics.PhysicsComponent;
 import com.almasb.fxgl.physics.box2d.dynamics.BodyType;
 import com.almasb.fxgl.texture.AnimatedTexture;
@@ -16,8 +15,6 @@ import com.almasb.fxgl.texture.AnimationChannel;
 import com.almasb.fxgl.texture.Texture;
 import javafx.geometry.Orientation;
 import javafx.scene.input.KeyCode;
-import javafx.scene.paint.Color;
-import javafx.scene.shape.Rectangle;
 import javafx.util.Duration;
 
 import java.util.List;
@@ -36,20 +33,20 @@ public class BaseGame extends GameApplication {
     private static Entity pipeUp;
     private static Entity pipeDown;
     private Sound die;
+    private Sound hit;
     public static void main( String[] args ) {
         launch(args);
     }
 
     @Override
     protected void initGame() {
-//        Texture baseTexture = getAssetLoader().loadTexture("base.png");
-//        entityBuilder().type(EntityType.WALL).view(baseTexture).at(0, 510).collidable().buildAndAttach();
-        entityBuilder().type(EntityType.WALL).viewWithBBox(new Rectangle(400, 200, Color.BLACK)).at(0,500).with(new CollidableComponent(true)).buildAndAttach();
-        SelfScrollingBackgroundView scrollView = new SelfScrollingBackgroundView(getAssetLoader().loadImage("base.png"), 388, 112, Orientation.HORIZONTAL, 100);
-//        entityBuilder().type(EntityType.WALL).viewWithBBox(scrollView).collidable().buildAndAttach();
+        Texture baseTexture = getAssetLoader().loadTexture("base.png");
+        SelfScrollingBackgroundView scrollView = new SelfScrollingBackgroundView(getAssetLoader().loadImage("base.png"), 500, 112, Orientation.HORIZONTAL, 100);
+        entityBuilder().type(EntityType.WALL).viewWithBBox(scrollView).collidable().buildAndAttach();
         messageTexture = getAssetLoader().loadTexture("message.png");
         wing = getAssetLoader().loadSound("wing.wav");
         die = getAssetLoader().loadSound("die.wav");
+        hit = getAssetLoader().loadSound("hit.wav");
         getGameWorld().addEntityFactory(new BirdFactory());
         getGameScene().setBackgroundRepeat("background-day.png");
         messageTexture.setTranslateX(85);
@@ -78,6 +75,17 @@ public class BaseGame extends GameApplication {
     }
 
     @Override
+    protected void onUpdate(double tpf) {
+        if (isPlaying) {
+            if (bird.getPosition().getY() > 490) {
+                getAudioPlayer().playSound(hit);
+                isPlaying = false;
+                getGameController().startNewGame();
+            }
+        }
+    }
+
+    @Override
     protected void initInput() {
         onKeyDown(KeyCode.SPACE, () -> {
             if (!isPlaying) {
@@ -88,7 +96,6 @@ public class BaseGame extends GameApplication {
             getAudioPlayer().playSound(wing);
             bird.getComponent(PhysicsComponent.class).setVelocityY(-500);
         });
-
     }
 
     public static class BirdFactory implements EntityFactory {
@@ -105,6 +112,7 @@ public class BaseGame extends GameApplication {
             bird = entityBuilder()
                     .viewWithBBox(new AnimatedTexture(channel).loop())
                     .with(physicsComponent)
+                    .collidable()
                     .at(180, 360)
                     .build();
             return bird;
